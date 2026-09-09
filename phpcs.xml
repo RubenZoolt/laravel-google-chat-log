@@ -30,8 +30,13 @@
     </rule>
     <rule ref="Generic.PHP.ForbiddenFunctions">
         <properties>
-            <property name="forbiddenFunctions" type="array"
-                value="dd=>null,d=>null,print=>echo,create_function=>null" />
+            <property name="forbiddenFunctions" type="array">
+                    <element key="d" value="null"/>
+                    <element key="dd" value="null"/>
+                    <element key="dump" value="null"/>
+                    <element key="print" value="echo"/>
+                    <element key="create_function" value="null"/>
+            </property>
         </properties>
     </rule>
     <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">
