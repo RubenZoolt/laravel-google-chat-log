@@ -89,6 +89,9 @@ class GoogleChatRecord
         $dataArray = [];
 
         $recordData = $this->removeExcludedFields($record);
+        if (isset($record['extra']) && isset($record['context'])) {
+            $recordData['extra'] = array_diff_key($record['extra'], $record['context']);
+        }
 
         if ($this->useAttachment) {
             $attachment = [
