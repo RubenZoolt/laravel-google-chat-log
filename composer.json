@@ -15,7 +15,9 @@
         "illuminate/support": "^9.0|^10.0|^11.0|^12.0|^13.0"
     },
     "require-dev": {
+        "illuminate/cache": "^9.0|^10.0|^11.0|^12.0|^13.0",
         "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.0",
         "rector/rector": "^2.5",
         "squizlabs/php_codesniffer": "^4.0",
         "phpcompatibility/php-compatibility": "dev-develop",
@@ -24,7 +26,8 @@
     "scripts": {
         "phpcs": "@php vendor/bin/phpcs --standard=phpcs.xml ./src",
         "phpcbf": "@php vendor/bin/phpcbf --standard=phpcs.xml .",
-        "phpstan": "./vendor/bin/phpstan analyse"
+        "phpstan": "./vendor/bin/phpstan analyse",
+        "test": "@php vendor/bin/phpunit"
     },
     "autoload": {
         "psr-4": {

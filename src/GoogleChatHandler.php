@@ -3,6 +3,7 @@
 namespace Enigma;
 
 use Closure;
+use Illuminate\Support\Facades\Cache;
 use Monolog\Handler\Curl\Util;
 use Throwable;
 use Exception;
@@ -44,11 +45,36 @@ class GoogleChatHandler extends AbstractProcessingHandler
             return;
         }
         $postData = $this->googleChatRecord->getGoogleChatData($record);
+        $threadKey = 'error-' . hash('sha256', $record->message);
+        if (Cache::getFacadeApplication()?->bound('cache')) {
+            try {
+                $cacheKey = 'google-chat-thread:' . hash('sha256', $record->message);
+                $newThreadKey = $threadKey . '-' . bin2hex(random_bytes(8));
+
+                if (Cache::add($cacheKey, $newThreadKey, now()->addHour())) {
+                    $threadKey = $newThreadKey;
+                } else {
+                    $cachedThreadKey = Cache::get($cacheKey);
+
+                    if (is_string($cachedThreadKey)) {
+                        $threadKey = $cachedThreadKey;
+                        $postData = ['text' => 'Occurred again at ' . now()->format('Y-m-d H:i:s')];
+                    }
+                }
+            } catch (\Throwable) {
+                //
+            }
+        }
+
+        $postData['thread'] = ['threadKey' => $threadKey];
         $postString = Utils::jsonEncode($postData);
 
         $ch = curl_init();
+        $separator = str_contains($this->webhookUrl, '?') ? '&' : '?';
+
         $options = [
-            CURLOPT_URL => $this->webhookUrl,
+            CURLOPT_URL => $this->webhookUrl . $separator .
+                'messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD',
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => ['Content-type: application/json'],
