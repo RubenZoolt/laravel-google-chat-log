@@ -45,10 +45,13 @@ class GoogleChatHandler extends AbstractProcessingHandler
             return;
         }
         $postData = $this->googleChatRecord->getGoogleChatData($record);
-        $threadKey = 'error-' . hash('sha256', $record->message);
-        if (Cache::getFacadeApplication()?->bound('cache')) {
+        $threadKey = 'error-' . hash('md5', $record->message);
+        if (
+            Cache::getFacadeApplication()?->bound('cache')
+            && config('google-chat.cache.enabled', true)
+        ) {
             try {
-                $cacheKey = 'google-chat-thread:' . hash('sha256', $record->message);
+                $cacheKey = 'google-chat-thread:' . hash('md5', $record->message);
                 $newThreadKey = $threadKey . '-' . bin2hex(random_bytes(8));
 
                 if (Cache::add($cacheKey, $newThreadKey, now()->addHour())) {
@@ -61,7 +64,7 @@ class GoogleChatHandler extends AbstractProcessingHandler
                         $postData = ['text' => 'Occurred again at ' . now()->format('Y-m-d H:i:s')];
                     }
                 }
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 //
             }
         }

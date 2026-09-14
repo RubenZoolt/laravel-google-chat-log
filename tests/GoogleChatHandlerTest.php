@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Enigma\Tests;
 
 use Enigma\GoogleChatHandler;
+use Enigma\Providers\GoogleChatServiceProvider;
 use Illuminate\Cache\ArrayStore;
-use Illuminate\Cache\Repository;
+use Illuminate\Cache\Repository as CacheRepository;
+use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Container\Container;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Facade;
@@ -17,19 +19,19 @@ use PHPUnit\Framework\TestCase;
 
 final class GoogleChatHandlerTest extends TestCase
 {
+    private ConfigRepository $config;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Carbon::setTestNow('2026-09-11 14:32:18');
         $app = new Container();
-        $app->instance('cache', new Repository(new ArrayStore()));
-        $app->instance('config', new class {
-            public function get(string $key, mixed $default = null): mixed
-            {
-                return $key === 'app.name' ? 'FixPart' : $default;
-            }
-        });
+        $app->instance('cache', new CacheRepository(new ArrayStore()));
+        $this->config = new ConfigRepository(['app' => ['name' => 'FixPart']]);
+        $app->instance('config', $this->config);
+
+        (new GoogleChatServiceProvider($app))->register();
 
         Container::setInstance($app);
         Facade::setFacadeApplication($app);
@@ -109,6 +111,35 @@ final class GoogleChatHandlerTest extends TestCase
     {
         Container::getInstance()->forgetInstance('cache');
         Facade::clearResolvedInstance('cache');
+
+        $handler = new GoogleChatHandler('https://example.test/webhook?key=test');
+        $record = $this->createRecord();
+
+        $handler->handle($record);
+        $handler->handle($record);
+
+        self::assertCount(2, Util::$executions);
+
+        $firstPayload = json_decode(
+            Util::$executions[0][CURLOPT_POSTFIELDS],
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $secondPayload = json_decode(
+            Util::$executions[1][CURLOPT_POSTFIELDS],
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        self::assertSame($firstPayload['text'], $secondPayload['text']);
+        self::assertArrayHasKey('cardsV2', $firstPayload);
+        self::assertArrayHasKey('cardsV2', $secondPayload);
+        self::assertSame($firstPayload['thread'], $secondPayload['thread']);
+    }
+
+    public function testFullErrorIsSentWhenCachingIsDisabled(): void
+    {
+        $this->config->set('google-chat.cache.enabled', false);
 
         $handler = new GoogleChatHandler('https://example.test/webhook?key=test');
         $record = $this->createRecord();
